@@ -34,10 +34,16 @@ describe("buildCandidates", () => {
   });
 
   it("dédoublonne, normalise et plafonne la liste", () => {
-    const out = buildCandidates("photo", ["Image", "image", "ice cream"], 5);
+    const out = buildCandidates("photo", ["Image", "image", "ice cream"], { max: 5 });
     expect(out).toContain("image");
     expect(out).toContain("ice-cream"); // normalisé
     expect(out.length).toBeLessThanOrEqual(5);
     expect(new Set(out).size).toBe(out.length); // pas de doublons
+  });
+
+  it("exclut les labels déjà proposés", () => {
+    const out = buildCandidates("photo", ["image", "picture"], { exclude: ["image"] });
+    expect(out).not.toContain("image");
+    expect(out).toContain("picture");
   });
 });

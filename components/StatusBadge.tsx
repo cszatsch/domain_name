@@ -1,33 +1,48 @@
+"use client";
+
+import { motion } from "motion/react";
+import { Check, X, HelpCircle, Loader2, type LucideIcon } from "lucide-react";
+
 import type { AvailabilityStatus } from "@/lib/types";
 
-const STYLES: Record<AvailabilityStatus | "pending", { label: string; className: string }> = {
+type Status = AvailabilityStatus | "pending";
+
+const MAP: Record<Status, { label: string; icon: LucideIcon; className: string; spin?: boolean }> = {
   available: {
     label: "Disponible",
-    className:
-      "bg-emerald-500/15 text-emerald-700 ring-emerald-600/30 dark:text-emerald-300",
+    icon: Check,
+    className: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
   },
   taken: {
     label: "Pris",
-    className: "bg-rose-500/15 text-rose-700 ring-rose-600/30 dark:text-rose-300",
+    icon: X,
+    className: "bg-rose-50 text-rose-700 ring-rose-600/20",
   },
   unknown: {
     label: "Indéterminé",
-    className: "bg-amber-500/15 text-amber-700 ring-amber-600/30 dark:text-amber-300",
+    icon: HelpCircle,
+    className: "bg-amber-50 text-amber-700 ring-amber-600/20",
   },
   pending: {
-    label: "Vérification…",
-    className:
-      "bg-zinc-500/10 text-zinc-500 ring-zinc-500/20 dark:text-zinc-400 animate-pulse",
+    label: "Vérification",
+    icon: Loader2,
+    className: "bg-slate-100 text-slate-500 ring-slate-400/20",
+    spin: true,
   },
 };
 
-export function StatusBadge({ status }: { status: AvailabilityStatus | "pending" }) {
-  const { label, className } = STYLES[status];
+export function StatusBadge({ status }: { status: Status }) {
+  const { label, icon: Icon, className, spin } = MAP[status];
   return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${className}`}
+    <motion.span
+      key={status}
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: "spring", stiffness: 500, damping: 28 }}
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${className}`}
     >
+      <Icon className={`h-3.5 w-3.5 ${spin ? "animate-spin" : ""}`} />
       {label}
-    </span>
+    </motion.span>
   );
 }

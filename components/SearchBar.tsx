@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "motion/react";
+import { Search, Square } from "lucide-react";
 
 interface SearchBarProps {
   onSearch: (term: string) => void;
@@ -18,32 +20,40 @@ export function SearchBar({ onSearch, loading, onCancel }: SearchBarProps) {
   };
 
   return (
-    <form onSubmit={submit} className="flex w-full gap-2">
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder="Un mot, une marque, un thème…"
-        autoFocus
-        autoComplete="off"
-        spellCheck={false}
-        className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-base outline-none transition focus:border-zinc-400 focus:ring-2 focus:ring-zinc-300 dark:border-white/15 dark:bg-zinc-900 dark:focus:border-zinc-500 dark:focus:ring-zinc-700"
-      />
+    <form onSubmit={submit} className="flex w-full items-stretch gap-2.5">
+      <div className="relative flex-1">
+        <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Un mot, une marque, un thème…"
+          autoFocus
+          autoComplete="off"
+          spellCheck={false}
+          className="w-full rounded-2xl border border-black/[0.07] bg-white py-4 pl-12 pr-4 text-base text-slate-900 shadow-soft outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-indigo-300 focus:shadow-lift focus:ring-4 focus:ring-indigo-500/10"
+        />
+      </div>
+
       {loading ? (
-        <button
+        <motion.button
           type="button"
           onClick={onCancel}
-          className="shrink-0 rounded-xl bg-zinc-200 px-5 py-3 font-medium text-zinc-800 transition hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600"
+          whileTap={{ scale: 0.97 }}
+          className="inline-flex shrink-0 items-center gap-2 rounded-2xl border border-black/[0.07] bg-white px-5 font-medium text-slate-700 shadow-soft transition hover:bg-slate-50"
         >
+          <Square className="h-4 w-4 fill-current" />
           Arrêter
-        </button>
+        </motion.button>
       ) : (
-        <button
+        <motion.button
           type="submit"
-          className="shrink-0 rounded-xl bg-zinc-900 px-5 py-3 font-medium text-white transition hover:bg-zinc-700 disabled:opacity-50 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.97 }}
+          className="shrink-0 rounded-2xl bg-gradient-to-b from-indigo-500 to-indigo-600 px-6 font-medium text-white shadow-[0_4px_16px_-4px_rgba(99,102,241,0.6)] transition hover:from-indigo-500 hover:to-indigo-700"
         >
           Rechercher
-        </button>
+        </motion.button>
       )}
     </form>
   );

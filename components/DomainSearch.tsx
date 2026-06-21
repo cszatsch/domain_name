@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MotionConfig } from "motion/react";
 
 import type { DomainRow, SortKey } from "@/components/types";
 import type { PricingMap, SeoMetrics, SocialResult, Suggestion } from "@/lib/types";
@@ -48,6 +49,7 @@ export function DomainSearch() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [suggestionsError, setSuggestionsError] = useState(false);
+  const [suggestionsMoreLoading, setSuggestionsMoreLoading] = useState(false);
   const [social, setSocial] = useState<SocialResult[]>([]);
   const [socialLoading, setSocialLoading] = useState(false);
   const [socialError, setSocialError] = useState(false);
@@ -182,6 +184,27 @@ export function DomainSearch() {
     [runAside],
   );
 
+  // « Générer d'autres idées » : récupère de nouvelles variantes en excluant
+  // celles déjà affichées, puis les ajoute à la liste.
+  const loadMoreSuggestions = useCallback(async () => {
+    if (!label || suggestionsMoreLoading) return;
+    const id = searchIdRef.current;
+    setSuggestionsMoreLoading(true);
+    try {
+      const exclude = suggestions.map((s) => s.label);
+      const r = await fetchSuggestions(label, undefined, exclude);
+      if (searchIdRef.current !== id) return; // une nouvelle recherche a démarré
+      setSuggestions((prev) => {
+        const seen = new Set(prev.map((s) => s.domain));
+        return [...prev, ...r.suggestions.filter((s) => !seen.has(s.domain))];
+      });
+    } catch {
+      // échec silencieux : on garde la liste existante
+    } finally {
+      if (searchIdRef.current === id) setSuggestionsMoreLoading(false);
+    }
+  }, [label, suggestions, suggestionsMoreLoading]);
+
   const counts = useMemo(() => {
     let available = 0;
     let taken = 0;
@@ -218,77 +241,81 @@ export function DomainSearch() {
   }, [rows, availableOnly, sort, pricing]);
 
   return (
-    <div className="flex w-full flex-col gap-6">
-      <SearchBar onSearch={search} loading={loading} onCancel={cancel} />
+    <MotionConfig reducedMotion="user">
+      <div className="flex w-full flex-col gap-6">
+        <SearchBar onSearch={search} loading={loading} onCancel={cancel} />
 
-      {error && (
-        <p className="rounded-lg bg-rose-500/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-300">
-          {error}
-        </p>
-      )}
+        {error && (
+          <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {error}
+          </p>
+        )}
 
-      {label && (
-        <>
-          <SeoPanel term={label} data={seo} loading={seoLoading} error={seoError} />
-          <SocialRow
-            handle={label.replace(/-/g, "")}
-            results={social}
-            loading={socialLoading}
-            error={socialError}
-          />
-        </>
-      )}
-
-      {rows.length > 0 && (
-        <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              <span className="font-mono font-medium text-foreground">{label}</span> —{" "}
-              <span className="text-emerald-600 dark:text-emerald-400">
-                {counts.available} disponible{counts.available > 1 ? "s" : ""}
-              </span>
-              {" · "}
-              <span>{counts.taken} pris</span>
-              {counts.pending > 0 && (
-                <>
-                  {" · "}
-                  <span className="text-zinc-500">{counts.pending} en cours</span>
-                </>
-              )}
-            </p>
-            <Filters
-              sort={sort}
-              onSortChange={setSort}
-              availableOnly={availableOnly}
-              onAvailableOnlyChange={setAvailableOnly}
+        {label && (
+          <div className="flex flex-col gap-4">
+            <SeoPanel term={label} data={seo} loading={seoLoading} error={seoError} />
+            <SocialRow
+              handle={label.replace(/-/g, "")}
+              results={social}
+              loading={socialLoading}
+              error={socialError}
             />
           </div>
+        )}
 
-          <ResultsGrid rows={visibleRows} pricing={pricing} currency={currency} />
+        {rows.length > 0 && (
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-slate-500">
+                <span className="font-mono font-medium text-slate-900">{label}</span> —{" "}
+                <span className="font-medium text-emerald-600">
+                  {counts.available} disponible{counts.available > 1 ? "s" : ""}
+                </span>
+                {" · "}
+                <span>{counts.taken} pris</span>
+                {counts.pending > 0 && (
+                  <>
+                    {" · "}
+                    <span className="text-slate-400">{counts.pending} en cours</span>
+                  </>
+                )}
+              </p>
+              <Filters
+                sort={sort}
+                onSortChange={setSort}
+                availableOnly={availableOnly}
+                onAvailableOnlyChange={setAvailableOnly}
+              />
+            </div>
 
-          {pricingError && (
-            <p className="text-xs text-amber-600 dark:text-amber-400">
-              Prix temporairement indisponibles (source lente ou injoignable) — réessayez dans un
-              instant.
+            <ResultsGrid rows={visibleRows} pricing={pricing} currency={currency} />
+
+            {pricingError && (
+              <p className="text-xs text-amber-600">
+                Prix temporairement indisponibles (source lente ou injoignable) — réessayez dans un
+                instant.
+              </p>
+            )}
+
+            <p className="text-xs text-slate-400">
+              Disponibilité indicative (RDAP/DNS) et tarifs indicatifs (Porkbun, en {currency}).
+              Vérifiez toujours auprès d&apos;un registrar avant l&apos;achat — certains noms
+              peuvent être premium ou réservés.
             </p>
-          )}
+          </div>
+        )}
 
-          <p className="text-xs text-zinc-400">
-            Disponibilité indicative (RDAP/DNS) et tarifs indicatifs (Porkbun, en {currency}).
-            Vérifiez toujours auprès d&apos;un registrar avant l&apos;achat — certains noms
-            peuvent être premium ou réservés.
-          </p>
-        </>
-      )}
-
-      {label && (
-        <SuggestionsList
-          suggestions={suggestions}
-          loading={suggestionsLoading}
-          error={suggestionsError}
-          onPick={search}
-        />
-      )}
-    </div>
+        {label && (
+          <SuggestionsList
+            suggestions={suggestions}
+            loading={suggestionsLoading}
+            error={suggestionsError}
+            moreLoading={suggestionsMoreLoading}
+            onPick={search}
+            onMore={loadMoreSuggestions}
+          />
+        )}
+      </div>
+    </MotionConfig>
   );
 }

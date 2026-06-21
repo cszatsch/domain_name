@@ -7,11 +7,17 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 export async function GET(request: Request): Promise<Response> {
-  const term = normalizeTerm(new URL(request.url).searchParams.get("term") ?? "");
+  const params = new URL(request.url).searchParams;
+  const term = normalizeTerm(params.get("term") ?? "");
   if (!isValidLabel(term)) {
     return Response.json({ error: "Terme invalide." }, { status: 422 });
   }
 
-  const suggestions = await suggestionProvider.generate(term, request.signal);
+  const exclude = (params.get("exclude") ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const suggestions = await suggestionProvider.generate(term, request.signal, { exclude });
   return Response.json({ suggestions }, { headers: { "Cache-Control": "no-store" } });
 }
