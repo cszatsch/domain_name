@@ -3,12 +3,27 @@
 import { useState } from "react";
 
 import type { DomainRow } from "@/components/types";
+import type { TldPrice } from "@/lib/types";
 import { StatusBadge } from "@/components/StatusBadge";
+import { formatPrice } from "@/lib/format";
 
-export function DomainCard({ row }: { row: DomainRow }) {
+interface DomainCardProps {
+  row: DomainRow;
+  price?: TldPrice;
+  currency: string;
+}
+
+export function DomainCard({ row, price, currency }: DomainCardProps) {
   const status = row.result?.status ?? "pending";
   const available = status === "available";
   const [copied, setCopied] = useState(false);
+
+  const reg = formatPrice(price?.registration, currency);
+  const renew = formatPrice(price?.renewal, currency);
+  const meta: string[] = [];
+  if (reg) meta.push(`Achat ${reg}`);
+  if (renew) meta.push(`Renouv. ${renew}`);
+  if (row.result?.source) meta.push(`via ${row.result.source.toUpperCase()}`);
 
   const copy = async () => {
     try {
@@ -30,8 +45,8 @@ export function DomainCard({ row }: { row: DomainRow }) {
     >
       <div className="min-w-0">
         <p className="truncate font-mono text-sm font-medium sm:text-base">{row.domain}</p>
-        {row.result?.source && (
-          <p className="mt-0.5 text-xs text-zinc-500">via {row.result.source.toUpperCase()}</p>
+        {meta.length > 0 && (
+          <p className="mt-0.5 truncate text-xs text-zinc-500">{meta.join(" · ")}</p>
         )}
       </div>
 

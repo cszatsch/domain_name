@@ -7,3 +7,6 @@ export interface DomainRow {
   category: TldCategory;
   result?: AvailabilityResult;
 }
+
+/** Critère de tri des résultats. */
+export type SortKey = "default" | "reg-asc" | "renew-asc" | "available-first";

@@ -304,10 +304,11 @@ quelques jours, accès « basic » limité).
 - [x] UI : `SearchBar`, `ResultsGrid`, `DomainCard` (dispo), remplissage progressif, filtre « dispo only »
 - [x] Tests Vitest (util, RDAP, concurrence, TLD) — 21 tests verts
 
-### Phase 2 — Prix *(~1–2 j)*
-- [ ] `PorkbunProvider` + `/api/pricing` (cache 24 h)
-- [ ] Fusion prix (achat + renouvellement) dans les cartes
-- [ ] `Filters` : tri/filtre par prix, extension, « dispo only »
+### Phase 2 — Prix ✅
+- [x] `PorkbunProvider` + `/api/pricing` (cache 24 h, en-têtes CDN, dégradation 502 propre)
+- [x] Fusion prix (achat + renouvellement) dans les cartes
+- [x] `Filters` : tri par prix d'achat/renouvellement, « disponibles d'abord », filtre « dispo only »
+      *(ordre par défaut = par extension ; filtre par catégorie à venir)*
 
 ### Phase 3 — Visibilité / SEO *(~2–3 j)*
 - [ ] `SeoProvider` (défaut : Trends + Suggest) + `/api/seo`

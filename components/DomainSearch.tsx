@@ -1,11 +1,14 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { DomainRow } from "@/components/types";
+import type { DomainRow, SortKey } from "@/components/types";
+import type { PricingMap } from "@/lib/types";
 import { SearchBar } from "@/components/SearchBar";
 import { ResultsGrid } from "@/components/ResultsGrid";
+import { Filters } from "@/components/Filters";
 import { streamAvailability } from "@/lib/availability-client";
+import { fetchPricing } from "@/lib/pricing-client";
 import { buildDomains, isValidLabel, normalizeTerm } from "@/lib/domain-utils";
 import { TLDS } from "@/lib/tlds";
 
@@ -17,13 +20,35 @@ function initialRows(label: string): DomainRow[] {
   }));
 }
 
+const STATUS_RANK: Record<string, number> = { available: 0, unknown: 1, taken: 2 };
+/** Rang de tri « disponibles d'abord » ; les domaines en cours passent en dernier. */
+function availableRank(row: DomainRow): number {
+  return row.result ? (STATUS_RANK[row.result.status] ?? 1) : 3;
+}
+
 export function DomainSearch() {
   const [label, setLabel] = useState("");
   const [rows, setRows] = useState<DomainRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availableOnly, setAvailableOnly] = useState(false);
+  const [sort, setSort] = useState<SortKey>("default");
+  const [pricing, setPricing] = useState<PricingMap>({});
+  const [currency, setCurrency] = useState("USD");
   const abortRef = useRef<AbortController | null>(null);
+
+  // Tarifs : chargés une fois (mutualisés côté serveur). Dégradation silencieuse
+  // en cas d'indisponibilité : les cartes s'affichent simplement sans prix.
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchPricing(controller.signal)
+      .then((r) => {
+        setPricing(r.prices);
+        setCurrency(r.currency);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
 
   const cancel = useCallback(() => {
     abortRef.current?.abort();
@@ -88,10 +113,28 @@ export function DomainSearch() {
     return { available, taken, pending };
   }, [rows]);
 
-  const visibleRows = useMemo(
-    () => (availableOnly ? rows.filter((r) => r.result?.status === "available") : rows),
-    [rows, availableOnly],
-  );
+  const visibleRows = useMemo(() => {
+    const filtered = availableOnly
+      ? rows.filter((r) => r.result?.status === "available")
+      : rows;
+    if (sort === "default") return filtered;
+
+    const sorted = [...filtered];
+    if (sort === "available-first") {
+      sorted.sort((a, b) => availableRank(a) - availableRank(b));
+    } else {
+      const key = sort === "reg-asc" ? "registration" : "renewal";
+      sorted.sort((a, b) => {
+        const pa = pricing[a.tld]?.[key];
+        const pb = pricing[b.tld]?.[key];
+        if (pa == null && pb == null) return 0;
+        if (pa == null) return 1;
+        if (pb == null) return -1;
+        return pa - pb;
+      });
+    }
+    return sorted;
+  }, [rows, availableOnly, sort, pricing]);
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -105,8 +148,8 @@ export function DomainSearch() {
 
       {rows.length > 0 && (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-            <p className="text-zinc-600 dark:text-zinc-400">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
               <span className="font-mono font-medium text-foreground">{label}</span> —{" "}
               <span className="text-emerald-600 dark:text-emerald-400">
                 {counts.available} disponible{counts.available > 1 ? "s" : ""}
@@ -120,22 +163,20 @@ export function DomainSearch() {
                 </>
               )}
             </p>
-            <label className="flex cursor-pointer items-center gap-2 select-none">
-              <input
-                type="checkbox"
-                checked={availableOnly}
-                onChange={(e) => setAvailableOnly(e.target.checked)}
-                className="h-4 w-4 accent-emerald-600"
-              />
-              Disponibles uniquement
-            </label>
+            <Filters
+              sort={sort}
+              onSortChange={setSort}
+              availableOnly={availableOnly}
+              onAvailableOnlyChange={setAvailableOnly}
+            />
           </div>
 
-          <ResultsGrid rows={visibleRows} />
+          <ResultsGrid rows={visibleRows} pricing={pricing} currency={currency} />
 
           <p className="text-xs text-zinc-400">
-            Disponibilité indicative (RDAP/DNS). Vérifiez toujours auprès d&apos;un registrar
-            avant l&apos;achat — certains noms peuvent être premium ou réservés.
+            Disponibilité indicative (RDAP/DNS) et tarifs indicatifs (Porkbun, en {currency}).
+            Vérifiez toujours auprès d&apos;un registrar avant l&apos;achat — certains noms
+            peuvent être premium ou réservés.
           </p>
         </>
       )}

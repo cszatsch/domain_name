@@ -35,3 +35,23 @@ export type AvailabilityStreamLine =
   | ({ type: "result" } & AvailabilityResult)
   | { type: "error"; message: string }
   | { type: "done"; total: number };
+
+/** Tarifs d'une extension (montants dans la devise de la réponse). */
+export interface TldPrice {
+  tld: string;
+  /** Prix d'acquisition (1re année), ou null si inconnu. */
+  registration: number | null;
+  /** Prix de renouvellement annuel, ou null si inconnu. */
+  renewal: number | null;
+  /** Prix de transfert, ou null si inconnu. */
+  transfer: number | null;
+}
+
+/** Table extension → tarifs. */
+export type PricingMap = Record<string, TldPrice>;
+
+/** Réponse de /api/pricing. */
+export interface PricingResponse {
+  currency: string;
+  prices: PricingMap;
+}

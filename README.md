@@ -10,7 +10,8 @@ affiche en temps réel les domaines disponibles sur les principales extensions.
 
 - ✅ **Phase 0** — Fondations (Next.js + TypeScript + Tailwind, ESLint, tests Vitest, CI)
 - ✅ **Phase 1** — Disponibilité en temps réel (RDAP + repli DNS, streaming NDJSON, UI progressive)
-- ⏳ Phase 2 — Prix (Porkbun) · Phase 3 — SEO · Phase 4 — Suggestions & réseaux sociaux
+- ✅ **Phase 2** — Prix (Porkbun : achat + renouvellement, tri/filtre)
+- ⏳ Phase 3 — SEO · Phase 4 — Suggestions & réseaux sociaux
 
 ## Démarrage
 
@@ -39,13 +40,17 @@ phases suivantes.
 app/
   page.tsx                     # page d'accueil + recherche
   api/availability/route.ts    # streaming NDJSON (runtime Node)
-components/                    # UI (SearchBar, DomainCard, ResultsGrid…)
+  api/pricing/route.ts         # tarifs par extension (cache 24 h)
+components/                    # UI (SearchBar, DomainCard, ResultsGrid, Filters…)
 lib/
   domain-utils.ts              # normalisation du terme, construction des domaines
+  format.ts                    # formatage des montants (Intl)
   tlds.ts                      # liste curatée des extensions (source partagée)
   rdap-bootstrap.ts            # registre IANA TLD → serveur RDAP
   concurrency.ts               # pool à concurrence limitée
-  providers/availability/      # adaptateurs : rdap.ts, dns.ts, index.ts
+  cache.ts                     # cache mémoire TTL (→ Upstash en prod)
+  providers/availability/      # adaptateurs dispo : rdap.ts, dns.ts, index.ts
+  providers/pricing/           # adaptateurs prix : porkbun.ts, index.ts
 ```
 
 La vérification de disponibilité suit une **stratégie hybride** : RDAP en priorité (gratuit,
@@ -55,9 +60,10 @@ couvert. Les résultats sont **streamés au fil de l'eau** pour un ressenti temp
 ## ⚠️ Accès réseau sortant
 
 La vérification RDAP nécessite un accès sortant vers `data.iana.org` (registre bootstrap) et vers
-les serveurs RDAP des registres (Verisign, AFNIC, Identity Digital, etc.). En environnement à
-**allowlist d'egress**, ces hôtes doivent être autorisés ; sinon l'application bascule
-automatiquement sur le repli DNS (qui ne requiert que la résolution DNS standard).
+les serveurs RDAP des registres (Verisign, AFNIC, Identity Digital, etc.). Les tarifs nécessitent
+`api.porkbun.com`. En environnement à **allowlist d'egress**, ces hôtes doivent être autorisés ;
+sinon l'application dégrade gracieusement : repli DNS pour la disponibilité (résolution DNS
+standard), et cartes sans prix si Porkbun est injoignable.
 
 ## Tests
 
