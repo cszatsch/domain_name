@@ -1,4 +1,24 @@
 /**
+ * Résout `promise` normalement, ou renvoie `fallback` si le délai `ms` est
+ * dépassé (garde-fou : garantit qu'une opération aboutit toujours à temps).
+ */
+export function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise<T>((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(fallback);
+      },
+    );
+  });
+}
+
+/**
  * Applique `worker` à chaque élément avec une limite de concurrence.
  * Les workers consomment les éléments depuis un index partagé : dès qu'un worker
  * termine, il enchaîne sur l'élément suivant disponible. L'ordre d'achèvement

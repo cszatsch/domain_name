@@ -1,20 +1,27 @@
-import { resolveNs } from "node:dns/promises";
+import { Resolver } from "node:dns/promises";
 
 import type { AvailabilityResult } from "@/lib/types";
 import { tldOf } from "@/lib/domain-utils";
 
+// Resolver borné : sans timeout explicite, une résolution lente peut traîner
+// (plusieurs essais × ~5 s) et laisser une carte bloquée en « Vérification ».
+const DNS_TIMEOUT_MS = 4000;
+const resolver = new Resolver({ timeout: DNS_TIMEOUT_MS, tries: 1 });
+
+// Codes signifiant « le domaine n'est pas délégué » → probablement libre.
+const FREE_CODES = new Set(["ENOTFOUND", "ENODATA", "NXDOMAIN"]);
+
 /**
- * Heuristique DNS de repli, utilisée quand RDAP ne couvre pas le TLD.
+ * Heuristique DNS de repli, utilisée quand RDAP ne couvre pas le TLD ou échoue.
  *
- * Présence d'enregistrements NS ⇒ le domaine est délégué donc "pris".
+ * Présence d'enregistrements NS ⇒ domaine délégué donc "pris".
  * NXDOMAIN / ENOTFOUND ⇒ probablement libre (heuristique, pas une autorité
- * d'enregistrement : un domaine peut être réservé sans être délégué).
- * Toute autre erreur ⇒ indéterminé.
+ * d'enregistrement). Timeout / autre erreur ⇒ indéterminé.
  */
 export async function checkDns(domain: string): Promise<AvailabilityResult> {
   const tld = tldOf(domain);
   try {
-    const records = await resolveNs(domain);
+    const records = await resolver.resolveNs(domain);
     return {
       domain,
       tld,
@@ -23,7 +30,7 @@ export async function checkDns(domain: string): Promise<AvailabilityResult> {
     };
   } catch (err) {
     const code = (err as NodeJS.ErrnoException)?.code;
-    if (code === "ENOTFOUND" || code === "ENODATA" || code === "NXDOMAIN") {
+    if (code && FREE_CODES.has(code)) {
       return { domain, tld, status: "available", source: "dns" };
     }
     return {

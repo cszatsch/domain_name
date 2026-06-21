@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { pooledMap } from "@/lib/concurrency";
+import { pooledMap, withTimeout } from "@/lib/concurrency";
 
 describe("pooledMap", () => {
   it("traite tous les éléments", async () => {
@@ -28,5 +28,23 @@ describe("pooledMap", () => {
 
   it("ne plante pas sur une liste vide", async () => {
     await expect(pooledMap(4, [], async () => {})).resolves.toBeUndefined();
+  });
+});
+
+describe("withTimeout", () => {
+  it("renvoie la valeur si la promesse aboutit à temps", async () => {
+    const result = await withTimeout(Promise.resolve("ok"), 100, "fallback");
+    expect(result).toBe("ok");
+  });
+
+  it("renvoie le fallback si le délai est dépassé", async () => {
+    const slow = new Promise<string>((r) => setTimeout(() => r("trop tard"), 50));
+    const result = await withTimeout(slow, 10, "fallback");
+    expect(result).toBe("fallback");
+  });
+
+  it("renvoie le fallback si la promesse échoue", async () => {
+    const result = await withTimeout(Promise.reject(new Error("boom")), 100, "fallback");
+    expect(result).toBe("fallback");
   });
 });

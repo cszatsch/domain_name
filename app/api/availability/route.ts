@@ -1,7 +1,7 @@
 import type { AvailabilityStreamLine } from "@/lib/types";
-import { buildDomains, isValidLabel, normalizeTerm } from "@/lib/domain-utils";
+import { buildDomains, isValidLabel, normalizeTerm, tldOf } from "@/lib/domain-utils";
 import { TLDS } from "@/lib/tlds";
-import { pooledMap } from "@/lib/concurrency";
+import { pooledMap, withTimeout } from "@/lib/concurrency";
 import { checkAvailability } from "@/lib/providers/availability";
 
 // Appels réseau vers des hôtes RDAP variés + streaming : runtime Node requis.
@@ -10,6 +10,9 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 const CONCURRENCY = 8;
+// Garde-fou : un domaine doit toujours aboutir à un état (jamais bloqué).
+// RDAP (~5 s) + DNS (~4 s) au pire ; au-delà on renvoie « indéterminé ».
+const DOMAIN_DEADLINE_MS = 12000;
 
 export async function POST(request: Request): Promise<Response> {
   let term: unknown;
@@ -41,7 +44,11 @@ export async function POST(request: Request): Promise<Response> {
     async start(controller) {
       try {
         await pooledMap(CONCURRENCY, domains, async (domain) => {
-          const result = await checkAvailability(domain, request.signal);
+          const result = await withTimeout(
+            checkAvailability(domain, request.signal),
+            DOMAIN_DEADLINE_MS,
+            { domain, tld: tldOf(domain), status: "unknown", source: "rdap", error: "timeout" },
+          );
           write(controller, { type: "result", ...result });
         });
         write(controller, { type: "done", total: domains.length });
