@@ -86,3 +86,30 @@ export interface SeoMetrics {
   /** true : données estimées à partir de sources gratuites. */
   estimated: boolean;
 }
+
+/** Variante de nom suggérée, re-vérifiée en disponibilité (.com). */
+export interface Suggestion {
+  label: string;
+  domain: string;
+  status: AvailabilityStatus;
+}
+
+/** Réponse de /api/suggestions. */
+export interface SuggestionsResponse {
+  suggestions: Suggestion[];
+}
+
+/** Disponibilité (best-effort) d'un identifiant sur une plateforme sociale. */
+export interface SocialResult {
+  platform: string;
+  name: string;
+  handle: string;
+  url: string;
+  status: AvailabilityStatus;
+}
+
+/** Réponse de /api/social. */
+export interface SocialResponse {
+  handle: string;
+  results: SocialResult[];
+}

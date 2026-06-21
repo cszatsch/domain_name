@@ -318,10 +318,12 @@ quelques jours, accès « basic » limité).
 - [ ] Volume absolu + concurrents SERP : nécessitent une source payante (DataForSEO/SEMrush) — adaptateur prêt
 - [ ] (Optionnel) `GoogleAdsProvider` si *developer token* obtenu
 
-### Phase 4 — Bonus : suggestions + réseaux sociaux *(~1,5–2 j)*
-- [ ] `SuggestionProvider` (Datamuse + règles ; option LLM) + `/api/suggestions`
-- [ ] `SocialProvider` (sonde HTTP) + `/api/social`
-- [ ] `SuggestionsList`, `SocialRow` (suggestions re-vérifiées en dispo)
+### Phase 4 — Bonus : suggestions + réseaux sociaux ✅
+- [x] `SuggestionProvider` (Datamuse + règles) + `/api/suggestions` — variantes re-vérifiées en dispo (.com)
+- [x] `SocialProvider` (sonde HTTP best-effort : GitHub, Instagram, X, TikTok, YouTube) + `/api/social`
+- [x] `SuggestionsList` (cliquable → nouvelle recherche), `SocialRow`
+- [x] Fonctions pures testées (règles, parsing Datamuse, statut social) ; chargées en parallèle
+- [ ] Option LLM (Claude API) pour des suggestions *brandables* — adaptateur prêt (clé requise)
 
 ### Phase 5 — Durcissement & mise en prod *(~1,5–2 j)*
 - [ ] Cache Upstash + rate-limit par IP

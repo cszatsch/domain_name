@@ -12,7 +12,8 @@ affiche en temps réel les domaines disponibles sur les principales extensions.
 - ✅ **Phase 1** — Disponibilité en temps réel (RDAP + repli DNS, streaming NDJSON, UI progressive)
 - ✅ **Phase 2** — Prix (Porkbun : achat + renouvellement, tri/filtre)
 - ✅ **Phase 3** — Visibilité / SEO (Google Suggest + Wikipédia, jauge de concurrence)
-- ⏳ Phase 4 — Suggestions de variantes & réseaux sociaux
+- ✅ **Phase 4** — Suggestions de variantes (Datamuse + règles) & disponibilité réseaux sociaux
+- ⏳ Phase 5 — Durcissement & mise en prod (cache Upstash, rate-limit, déploiement)
 
 ## Démarrage
 
@@ -43,7 +44,9 @@ app/
   api/availability/route.ts    # streaming NDJSON (runtime Node)
   api/pricing/route.ts         # tarifs par extension (cache 24 h)
   api/seo/route.ts             # visibilité du terme (cache 24 h)
-components/                    # UI (SearchBar, DomainCard, ResultsGrid, Filters, SeoPanel…)
+  api/suggestions/route.ts     # variantes de noms + dispo .com
+  api/social/route.ts          # disponibilité réseaux sociaux (best-effort)
+components/                    # UI (SearchBar, DomainCard, ResultsGrid, Filters, SeoPanel, SuggestionsList, SocialRow…)
 lib/
   domain-utils.ts              # normalisation du terme, construction des domaines
   format.ts                    # formatage des montants (Intl)
@@ -54,6 +57,8 @@ lib/
   providers/availability/      # adaptateurs dispo : rdap.ts, dns.ts, index.ts
   providers/pricing/           # adaptateurs prix : porkbun.ts, index.ts
   providers/seo/               # adaptateurs SEO : google-suggest.ts, wikipedia.ts, competition.ts, index.ts
+  providers/suggestions/       # adaptateurs variantes : datamuse.ts, rules.ts, index.ts
+  providers/social/            # sonde réseaux sociaux : index.ts
 ```
 
 La vérification de disponibilité suit une **stratégie hybride** : RDAP en priorité (gratuit,
@@ -65,10 +70,12 @@ couvert. Les résultats sont **streamés au fil de l'eau** pour un ressenti temp
 La vérification RDAP nécessite un accès sortant vers `data.iana.org` (registre bootstrap) et vers
 les serveurs RDAP des registres (Verisign, AFNIC, Identity Digital, etc.). Les tarifs nécessitent
 `api.porkbun.com`. La visibilité nécessite `suggestqueries.google.com`, `fr.wikipedia.org` et
-`wikimedia.org`. En environnement à **allowlist d'egress**, ces hôtes doivent être autorisés ;
-sinon l'application dégrade gracieusement : repli DNS pour la disponibilité (résolution DNS
-standard), cartes sans prix si Porkbun est injoignable, et panneau de visibilité vide si les
-sources SEO sont injoignables.
+`wikimedia.org`. Les variantes utilisent `api.datamuse.com` ; la sonde sociale interroge
+`github.com`, `instagram.com`, `x.com`, `tiktok.com`, `youtube.com`. En environnement à
+**allowlist d'egress**, ces hôtes doivent être autorisés ; sinon l'application dégrade
+gracieusement : repli DNS pour la disponibilité (résolution DNS standard), cartes sans prix si
+Porkbun est injoignable, panneau de visibilité vide si les sources SEO sont injoignables, et
+statut « ? » pour les réseaux sociaux non joignables.
 
 ## Tests
 

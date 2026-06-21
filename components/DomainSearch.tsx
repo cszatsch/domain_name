@@ -3,14 +3,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { DomainRow, SortKey } from "@/components/types";
-import type { PricingMap, SeoMetrics } from "@/lib/types";
+import type { PricingMap, SeoMetrics, SocialResult, Suggestion } from "@/lib/types";
 import { SearchBar } from "@/components/SearchBar";
 import { ResultsGrid } from "@/components/ResultsGrid";
 import { Filters } from "@/components/Filters";
 import { SeoPanel } from "@/components/SeoPanel";
+import { SocialRow } from "@/components/SocialRow";
+import { SuggestionsList } from "@/components/SuggestionsList";
 import { streamAvailability } from "@/lib/availability-client";
 import { fetchPricing } from "@/lib/pricing-client";
 import { fetchSeo } from "@/lib/seo-client";
+import { fetchSuggestions } from "@/lib/suggestions-client";
+import { fetchSocial } from "@/lib/social-client";
 import { buildDomains, isValidLabel, normalizeTerm } from "@/lib/domain-utils";
 import { TLDS } from "@/lib/tlds";
 
@@ -41,6 +45,12 @@ export function DomainSearch() {
   const [seo, setSeo] = useState<SeoMetrics | null>(null);
   const [seoLoading, setSeoLoading] = useState(false);
   const [seoError, setSeoError] = useState(false);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [suggestionsError, setSuggestionsError] = useState(false);
+  const [social, setSocial] = useState<SocialResult[]>([]);
+  const [socialLoading, setSocialLoading] = useState(false);
+  const [socialError, setSocialError] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const searchIdRef = useRef(0);
 
@@ -68,68 +78,109 @@ export function DomainSearch() {
     setLoading(false);
   }, []);
 
-  const search = useCallback(async (term: string) => {
-    const normalized = normalizeTerm(term);
-    if (!isValidLabel(normalized)) {
-      setError("Saisissez au moins une lettre ou un chiffre.");
-      setRows([]);
-      setLabel("");
+  // Lance une requête annexe (SEO / suggestions / social) en ignorant les
+  // réponses obsolètes (une recherche plus récente a démarré) et les abandons.
+  const runAside = useCallback(
+    <T,>(
+      promise: Promise<T>,
+      searchId: number,
+      handlers: { onData: (value: T) => void; onError: () => void; onSettled: () => void },
+    ) => {
+      promise
+        .then((value) => {
+          if (searchIdRef.current === searchId) handlers.onData(value);
+        })
+        .catch((err) => {
+          const aborted = err instanceof DOMException && err.name === "AbortError";
+          if (searchIdRef.current === searchId && !aborted) handlers.onError();
+        })
+        .finally(() => {
+          if (searchIdRef.current === searchId) handlers.onSettled();
+        });
+    },
+    [],
+  );
+
+  const search = useCallback(
+    async (term: string) => {
+      const normalized = normalizeTerm(term);
+      if (!isValidLabel(normalized)) {
+        setError("Saisissez au moins une lettre ou un chiffre.");
+        setRows([]);
+        setLabel("");
+        setSeo(null);
+        setSuggestions([]);
+        setSocial([]);
+        return;
+      }
+
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const { signal } = controller;
+      const searchId = ++searchIdRef.current;
+
+      setError(null);
+      setLabel(normalized);
+      setRows(initialRows(normalized));
+      setLoading(true);
+
+      // Indicateurs annexes, chargés en parallèle du streaming de disponibilité.
       setSeo(null);
-      return;
-    }
-
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    setError(null);
-    setLabel(normalized);
-    setRows(initialRows(normalized));
-    setLoading(true);
-
-    // Visibilité / SEO en parallèle du streaming (searchId ignore les réponses obsolètes).
-    const searchId = ++searchIdRef.current;
-    setSeo(null);
-    setSeoError(false);
-    setSeoLoading(true);
-    fetchSeo(normalized, controller.signal)
-      .then((metrics) => {
-        if (searchIdRef.current === searchId) setSeo(metrics);
-      })
-      .catch((err) => {
-        const aborted = err instanceof DOMException && err.name === "AbortError";
-        if (searchIdRef.current === searchId && !aborted) setSeoError(true);
-      })
-      .finally(() => {
-        if (searchIdRef.current === searchId) setSeoLoading(false);
+      setSeoError(false);
+      setSeoLoading(true);
+      runAside(fetchSeo(normalized, signal), searchId, {
+        onData: setSeo,
+        onError: () => setSeoError(true),
+        onSettled: () => setSeoLoading(false),
       });
 
-    try {
-      await streamAvailability(normalized, {
-        signal: controller.signal,
-        onLine: (line) => {
-          if (line.type === "result") {
-            setRows((prev) =>
-              prev.map((r) => (r.domain === line.domain ? { ...r, result: line } : r)),
-            );
-          } else if (line.type === "error") {
-            setError(line.message);
-          } else if (line.type === "done") {
-            setLoading(false);
-          }
-        },
+      setSuggestions([]);
+      setSuggestionsError(false);
+      setSuggestionsLoading(true);
+      runAside(fetchSuggestions(normalized, signal), searchId, {
+        onData: (r) => setSuggestions(r.suggestions),
+        onError: () => setSuggestionsError(true),
+        onSettled: () => setSuggestionsLoading(false),
       });
-    } catch (err) {
-      if (!(err instanceof DOMException && err.name === "AbortError")) {
-        setError(err instanceof Error ? err.message : "Erreur réseau.");
+
+      setSocial([]);
+      setSocialError(false);
+      setSocialLoading(true);
+      runAside(fetchSocial(normalized, signal), searchId, {
+        onData: (r) => setSocial(r.results),
+        onError: () => setSocialError(true),
+        onSettled: () => setSocialLoading(false),
+      });
+
+      try {
+        await streamAvailability(normalized, {
+          signal,
+          onLine: (line) => {
+            if (line.type === "result") {
+              setRows((prev) =>
+                prev.map((r) => (r.domain === line.domain ? { ...r, result: line } : r)),
+              );
+            } else if (line.type === "error") {
+              setError(line.message);
+            } else if (line.type === "done") {
+              setLoading(false);
+            }
+          },
+        });
+      } catch (err) {
+        if (!(err instanceof DOMException && err.name === "AbortError")) {
+          setError(err instanceof Error ? err.message : "Erreur réseau.");
+        }
+      } finally {
+        if (abortRef.current === controller) {
+          abortRef.current = null;
+          setLoading(false);
+        }
       }
-    } finally {
-      if (abortRef.current === controller) {
-        abortRef.current = null;
-        setLoading(false);
-      }
-    }
-  }, []);
+    },
+    [runAside],
+  );
 
   const counts = useMemo(() => {
     let available = 0;
@@ -176,7 +227,17 @@ export function DomainSearch() {
         </p>
       )}
 
-      {label && <SeoPanel term={label} data={seo} loading={seoLoading} error={seoError} />}
+      {label && (
+        <>
+          <SeoPanel term={label} data={seo} loading={seoLoading} error={seoError} />
+          <SocialRow
+            handle={label.replace(/-/g, "")}
+            results={social}
+            loading={socialLoading}
+            error={socialError}
+          />
+        </>
+      )}
 
       {rows.length > 0 && (
         <>
@@ -218,6 +279,15 @@ export function DomainSearch() {
             peuvent être premium ou réservés.
           </p>
         </>
+      )}
+
+      {label && (
+        <SuggestionsList
+          suggestions={suggestions}
+          loading={suggestionsLoading}
+          error={suggestionsError}
+          onPick={search}
+        />
       )}
     </div>
   );
