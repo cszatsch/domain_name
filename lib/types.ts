@@ -55,3 +55,34 @@ export interface PricingResponse {
   currency: string;
   prices: PricingMap;
 }
+
+export type CompetitionLevel = "low" | "medium" | "high";
+
+/** Estimation du niveau de concurrence d'un terme (0–100). */
+export interface SeoCompetition {
+  score: number;
+  level: CompetitionLevel;
+}
+
+/** Notoriété encyclopédique du terme (proxy de concurrence). */
+export interface SeoNotoriety {
+  hasArticle: boolean;
+  title?: string;
+  url?: string;
+  /** Vues mensuelles Wikipédia (dernier mois complet), si disponibles. */
+  monthlyViews?: number | null;
+}
+
+/** Indicateurs de visibilité d'un terme (réponse de /api/seo). */
+export interface SeoMetrics {
+  term: string;
+  /** Volume de recherche mensuel — null en version gratuite (source payante requise). */
+  searchVolume: number | null;
+  competition: SeoCompetition | null;
+  relatedTerms: string[];
+  notoriety: SeoNotoriety | null;
+  /** Sources ayant répondu (ex. "google-suggest", "wikipedia"). */
+  sources: string[];
+  /** true : données estimées à partir de sources gratuites. */
+  estimated: boolean;
+}

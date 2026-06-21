@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { DomainRow, SortKey } from "@/components/types";
-import type { PricingMap } from "@/lib/types";
+import type { PricingMap, SeoMetrics } from "@/lib/types";
 import { SearchBar } from "@/components/SearchBar";
 import { ResultsGrid } from "@/components/ResultsGrid";
 import { Filters } from "@/components/Filters";
+import { SeoPanel } from "@/components/SeoPanel";
 import { streamAvailability } from "@/lib/availability-client";
 import { fetchPricing } from "@/lib/pricing-client";
+import { fetchSeo } from "@/lib/seo-client";
 import { buildDomains, isValidLabel, normalizeTerm } from "@/lib/domain-utils";
 import { TLDS } from "@/lib/tlds";
 
@@ -36,7 +38,11 @@ export function DomainSearch() {
   const [pricing, setPricing] = useState<PricingMap>({});
   const [currency, setCurrency] = useState("USD");
   const [pricingError, setPricingError] = useState(false);
+  const [seo, setSeo] = useState<SeoMetrics | null>(null);
+  const [seoLoading, setSeoLoading] = useState(false);
+  const [seoError, setSeoError] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const searchIdRef = useRef(0);
 
   // Tarifs : chargés une fois (cache serveur 24 h). Dégradation gracieuse en cas
   // d'indisponibilité : les cartes s'affichent sans prix + une note discrète.
@@ -68,6 +74,7 @@ export function DomainSearch() {
       setError("Saisissez au moins une lettre ou un chiffre.");
       setRows([]);
       setLabel("");
+      setSeo(null);
       return;
     }
 
@@ -79,6 +86,23 @@ export function DomainSearch() {
     setLabel(normalized);
     setRows(initialRows(normalized));
     setLoading(true);
+
+    // Visibilité / SEO en parallèle du streaming (searchId ignore les réponses obsolètes).
+    const searchId = ++searchIdRef.current;
+    setSeo(null);
+    setSeoError(false);
+    setSeoLoading(true);
+    fetchSeo(normalized, controller.signal)
+      .then((metrics) => {
+        if (searchIdRef.current === searchId) setSeo(metrics);
+      })
+      .catch((err) => {
+        const aborted = err instanceof DOMException && err.name === "AbortError";
+        if (searchIdRef.current === searchId && !aborted) setSeoError(true);
+      })
+      .finally(() => {
+        if (searchIdRef.current === searchId) setSeoLoading(false);
+      });
 
     try {
       await streamAvailability(normalized, {
@@ -151,6 +175,8 @@ export function DomainSearch() {
           {error}
         </p>
       )}
+
+      {label && <SeoPanel term={label} data={seo} loading={seoLoading} error={seoError} />}
 
       {rows.length > 0 && (
         <>

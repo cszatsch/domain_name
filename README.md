@@ -11,7 +11,8 @@ affiche en temps réel les domaines disponibles sur les principales extensions.
 - ✅ **Phase 0** — Fondations (Next.js + TypeScript + Tailwind, ESLint, tests Vitest, CI)
 - ✅ **Phase 1** — Disponibilité en temps réel (RDAP + repli DNS, streaming NDJSON, UI progressive)
 - ✅ **Phase 2** — Prix (Porkbun : achat + renouvellement, tri/filtre)
-- ⏳ Phase 3 — SEO · Phase 4 — Suggestions & réseaux sociaux
+- ✅ **Phase 3** — Visibilité / SEO (Google Suggest + Wikipédia, jauge de concurrence)
+- ⏳ Phase 4 — Suggestions de variantes & réseaux sociaux
 
 ## Démarrage
 
@@ -41,7 +42,8 @@ app/
   page.tsx                     # page d'accueil + recherche
   api/availability/route.ts    # streaming NDJSON (runtime Node)
   api/pricing/route.ts         # tarifs par extension (cache 24 h)
-components/                    # UI (SearchBar, DomainCard, ResultsGrid, Filters…)
+  api/seo/route.ts             # visibilité du terme (cache 24 h)
+components/                    # UI (SearchBar, DomainCard, ResultsGrid, Filters, SeoPanel…)
 lib/
   domain-utils.ts              # normalisation du terme, construction des domaines
   format.ts                    # formatage des montants (Intl)
@@ -51,6 +53,7 @@ lib/
   cache.ts                     # cache mémoire TTL (→ Upstash en prod)
   providers/availability/      # adaptateurs dispo : rdap.ts, dns.ts, index.ts
   providers/pricing/           # adaptateurs prix : porkbun.ts, index.ts
+  providers/seo/               # adaptateurs SEO : google-suggest.ts, wikipedia.ts, competition.ts, index.ts
 ```
 
 La vérification de disponibilité suit une **stratégie hybride** : RDAP en priorité (gratuit,
@@ -61,9 +64,11 @@ couvert. Les résultats sont **streamés au fil de l'eau** pour un ressenti temp
 
 La vérification RDAP nécessite un accès sortant vers `data.iana.org` (registre bootstrap) et vers
 les serveurs RDAP des registres (Verisign, AFNIC, Identity Digital, etc.). Les tarifs nécessitent
-`api.porkbun.com`. En environnement à **allowlist d'egress**, ces hôtes doivent être autorisés ;
+`api.porkbun.com`. La visibilité nécessite `suggestqueries.google.com`, `fr.wikipedia.org` et
+`wikimedia.org`. En environnement à **allowlist d'egress**, ces hôtes doivent être autorisés ;
 sinon l'application dégrade gracieusement : repli DNS pour la disponibilité (résolution DNS
-standard), et cartes sans prix si Porkbun est injoignable.
+standard), cartes sans prix si Porkbun est injoignable, et panneau de visibilité vide si les
+sources SEO sont injoignables.
 
 ## Tests
 

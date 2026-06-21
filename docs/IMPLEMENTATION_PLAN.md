@@ -310,9 +310,12 @@ quelques jours, accès « basic » limité).
 - [x] `Filters` : tri par prix d'achat/renouvellement, « disponibles d'abord », filtre « dispo only »
       *(ordre par défaut = par extension ; filtre par catégorie à venir)*
 
-### Phase 3 — Visibilité / SEO *(~2–3 j)*
-- [ ] `SeoProvider` (défaut : Trends + Suggest) + `/api/seo`
-- [ ] `SeoPanel` : volume/intérêt, jauge de concurrence, tendance, concurrents
+### Phase 3 — Visibilité / SEO ✅
+- [x] `SeoProvider` (défaut gratuit : **Google Suggest** + **Wikipédia**) + `/api/seo` (cache 24 h)
+      *(Google Trends écarté : non officiel et fragile)*
+- [x] `SeoPanel` : volume (— en gratuit), jauge de concurrence (estimation), notoriété Wikipédia, recherches associées
+- [x] Estimation de concurrence pure et testée ; tolérance aux pannes (`Promise.allSettled`)
+- [ ] Volume absolu + concurrents SERP : nécessitent une source payante (DataForSEO/SEMrush) — adaptateur prêt
 - [ ] (Optionnel) `GoogleAdsProvider` si *developer token* obtenu
 
 ### Phase 4 — Bonus : suggestions + réseaux sociaux *(~1,5–2 j)*
