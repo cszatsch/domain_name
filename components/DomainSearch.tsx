@@ -35,18 +35,24 @@ export function DomainSearch() {
   const [sort, setSort] = useState<SortKey>("default");
   const [pricing, setPricing] = useState<PricingMap>({});
   const [currency, setCurrency] = useState("USD");
+  const [pricingError, setPricingError] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  // Tarifs : chargés une fois (mutualisés côté serveur). Dégradation silencieuse
-  // en cas d'indisponibilité : les cartes s'affichent simplement sans prix.
+  // Tarifs : chargés une fois (cache serveur 24 h). Dégradation gracieuse en cas
+  // d'indisponibilité : les cartes s'affichent sans prix + une note discrète.
   useEffect(() => {
     const controller = new AbortController();
     fetchPricing(controller.signal)
       .then((r) => {
         setPricing(r.prices);
         setCurrency(r.currency);
+        setPricingError(false);
       })
-      .catch(() => {});
+      .catch((err) => {
+        if (!(err instanceof DOMException && err.name === "AbortError")) {
+          setPricingError(true);
+        }
+      });
     return () => controller.abort();
   }, []);
 
@@ -172,6 +178,13 @@ export function DomainSearch() {
           </div>
 
           <ResultsGrid rows={visibleRows} pricing={pricing} currency={currency} />
+
+          {pricingError && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              Prix temporairement indisponibles (source lente ou injoignable) — réessayez dans un
+              instant.
+            </p>
+          )}
 
           <p className="text-xs text-zinc-400">
             Disponibilité indicative (RDAP/DNS) et tarifs indicatifs (Porkbun, en {currency}).

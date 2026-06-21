@@ -3,7 +3,9 @@ import type { PricingMap } from "@/lib/types";
 // Endpoint public Porkbun (aucune authentification requise pour les tarifs).
 // Convention de l'API : POST avec un corps JSON.
 const PORKBUN_PRICING_URL = "https://api.porkbun.com/api/json/v3/pricing/get";
-const TIMEOUT_MS = 8000;
+// L'endpoint renvoie le tarif de ~1500 extensions : la réponse est volumineuse
+// et lente (plusieurs secondes). Timeout large ; l'appel est mis en cache 24 h.
+const TIMEOUT_MS = 20000;
 
 interface RawTldPricing {
   registration?: string;
