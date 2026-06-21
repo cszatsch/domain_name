@@ -290,19 +290,19 @@ quelques jours, accès « basic » limité).
 
 > Estimations indicatives pour **1 développeur** ; les phases 1–2 livrent déjà un outil utile.
 
-### Phase 0 — Fondations *(~0,5–1 j)*
-- [ ] Scaffold Next.js (App Router) + TypeScript + Tailwind
-- [ ] ESLint / Prettier, `tsconfig` strict
-- [ ] CI GitHub Actions (lint, typecheck, test, build)
-- [ ] `.env.example`, `lib/types.ts`, `lib/tlds.ts`
+### Phase 0 — Fondations ✅
+- [x] Scaffold Next.js (App Router) + TypeScript + Tailwind
+- [x] ESLint, `tsconfig` strict *(Prettier non ajouté pour l'instant)*
+- [x] CI GitHub Actions (lint, typecheck, test, build)
+- [x] `.env.example`, `lib/types.ts`, `lib/tlds.ts`
 
-### Phase 1 — Disponibilité (cœur) *(~2–3 j)*
-- [ ] `rdap-bootstrap.ts` (mapping IANA, mis en cache)
-- [ ] `RdapProvider` + fallbacks WHOIS / DNS
-- [ ] `/api/availability` en **streaming** (concurrence + timeouts)
-- [ ] `domain-utils.ts` (normalisation, IDN/punycode)
-- [ ] UI : `SearchBar`, `ResultsGrid`, `DomainCard` (dispo), remplissage progressif
-- [ ] Tests providers + util
+### Phase 1 — Disponibilité (cœur) ✅
+- [x] `rdap-bootstrap.ts` (mapping IANA, mis en cache 24 h)
+- [x] `RdapProvider` + repli **DNS** *(WHOIS prévu ultérieurement)*
+- [x] `/api/availability` en **streaming** NDJSON (concurrence + timeouts + abort)
+- [x] `domain-utils.ts` (normalisation ; IDN/punycode complet à venir)
+- [x] UI : `SearchBar`, `ResultsGrid`, `DomainCard` (dispo), remplissage progressif, filtre « dispo only »
+- [x] Tests Vitest (util, RDAP, concurrence, TLD) — 21 tests verts
 
 ### Phase 2 — Prix *(~1–2 j)*
 - [ ] `PorkbunProvider` + `/api/pricing` (cache 24 h)
